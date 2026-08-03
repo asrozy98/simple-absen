@@ -18,6 +18,18 @@ export interface Attendance {
   duration: string | null;
 }
 
+export interface Schedule {
+  id: string;
+  userId: string;
+  day: string; // "Senin", "Selasa", "Rabu", "Kamis", "Jumat"
+  startTime: string; // HH:mm format
+  endTime: string; // HH:mm format
+  subject: string;
+  className: string;
+  room: string;
+  createdAt: string;
+}
+
 async function getSheets() {
   const key = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY || "{}");
   const auth = new google.auth.GoogleAuth({
@@ -214,4 +226,122 @@ export async function getAllAttendanceWithUser(): Promise<(Attendance & { userNa
       };
     })
     .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+export async function getSchedules(): Promise<Schedule[]> {
+  const sheets = await getSheets();
+  const spreadsheetId = getSpreadsheetId();
+  await ensureSheetExists(sheets, spreadsheetId, "Schedules");
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: "Schedules!A2:I",
+  });
+  const rows = res.data.values || [];
+  return rows.map((row) => ({
+    id: row[0] || "",
+    userId: row[1] || "",
+    day: row[2] || "",
+    startTime: row[3] || "",
+    endTime: row[4] || "",
+    subject: row[5] || "",
+    className: row[6] || "",
+    room: row[7] || "",
+    createdAt: row[8] || "",
+  }));
+}
+
+export async function getSchedulesByUser(userId: string): Promise<Schedule[]> {
+  const schedules = await getSchedules();
+  return schedules.filter((s) => s.userId === userId);
+}
+
+export async function getSchedulesByDay(day: string): Promise<Schedule[]> {
+  const schedules = await getSchedules();
+  return schedules.filter((s) => s.day === day);
+}
+
+export async function addSchedule(schedule: Omit<Schedule, "id" | "createdAt">): Promise<Schedule> {
+  const sheets = await getSheets();
+  const spreadsheetId = getSpreadsheetId();
+  await ensureSheetExists(sheets, spreadsheetId, "Schedules");
+
+  const newSchedule: Schedule = {
+    id: crypto.randomUUID(),
+    ...schedule,
+    createdAt: new Date().toISOString(),
+  };
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: "Schedules!A:I",
+    valueInputOption: "RAW",
+    requestBody: {
+      values: [[
+        newSchedule.id,
+        newSchedule.userId,
+        newSchedule.day,
+        newSchedule.startTime,
+        newSchedule.endTime,
+        newSchedule.subject,
+        newSchedule.className,
+        newSchedule.room,
+        newSchedule.createdAt,
+      ]],
+    },
+  });
+
+  return newSchedule;
+}
+
+export async function updateSchedule(id: string, schedule: Omit<Schedule, "id" | "createdAt">): Promise<Schedule> {
+  const sheets = await getSheets();
+  const spreadsheetId = getSpreadsheetId();
+
+  const schedules = await getSchedules();
+  const rowIndex = schedules.findIndex((s) => s.id === id);
+  if (rowIndex === -1) throw new Error("Schedule not found");
+
+  const updatedSchedule: Schedule = {
+    id,
+    ...schedule,
+    createdAt: schedules[rowIndex].createdAt, // Keep original createdAt
+  };
+
+  const sheetRange = `Schedules!A${rowIndex + 2}:I${rowIndex + 2}`;
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: sheetRange,
+    valueInputOption: "RAW",
+    requestBody: {
+      values: [[
+        updatedSchedule.id,
+        updatedSchedule.userId,
+        updatedSchedule.day,
+        updatedSchedule.startTime,
+        updatedSchedule.endTime,
+        updatedSchedule.subject,
+        updatedSchedule.className,
+        updatedSchedule.room,
+        updatedSchedule.createdAt,
+      ]],
+    },
+  });
+
+  return updatedSchedule;
+}
+
+export async function deleteSchedule(id: string): Promise<void> {
+  const sheets = await getSheets();
+  const spreadsheetId = getSpreadsheetId();
+
+  const schedules = await getSchedules();
+  const rowIndex = schedules.findIndex((s) => s.id === id);
+  if (rowIndex === -1) throw new Error("Schedule not found");
+
+  const sheetRange = `Schedules!A${rowIndex + 2}:I${rowIndex + 2}`;
+  await sheets.spreadsheets.values.clear({
+    spreadsheetId,
+    range: sheetRange,
+  });
 }

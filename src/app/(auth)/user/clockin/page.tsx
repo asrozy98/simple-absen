@@ -13,8 +13,13 @@ import {
   AlertCircle,
   Calendar,
   Timer,
+  BookOpen,
+  GraduationCap,
+  Building,
+  Clock,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Progress } from "@/components/ui/progress";
 
 interface TodayAttendance {
   id: string;
@@ -24,6 +29,361 @@ interface TodayAttendance {
   duration: string | null;
 }
 
+interface ScheduleItem {
+  id: string;
+  day: string;
+  startTime: string;
+  endTime: string;
+  subject: string;
+  className: string;
+  room: string;
+}
+
+// Helper function to determine schedule status
+function getScheduleStatus(schedule: ScheduleItem) {
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+
+  const [startHour, startMinute] = schedule.startTime.split(":").map(Number);
+  const [endHour, endMinute] = schedule.endTime.split(":").map(Number);
+
+  const currentTimeInMinutes = currentHour * 60 + currentMinute;
+  const startTimeInMinutes = startHour * 60 + startMinute;
+  const endTimeInMinutes = endHour * 60 + endMinute;
+
+  if (
+    currentTimeInMinutes >= startTimeInMinutes &&
+    currentTimeInMinutes <= endTimeInMinutes
+  ) {
+    return {
+      status: "ongoing",
+      currentTimeInMinutes,
+      startTimeInMinutes,
+      endTimeInMinutes,
+    };
+  } else if (currentTimeInMinutes > endTimeInMinutes) {
+    return {
+      status: "completed",
+      currentTimeInMinutes,
+      startTimeInMinutes,
+      endTimeInMinutes,
+    };
+  } else {
+    return {
+      status: "upcoming",
+      currentTimeInMinutes,
+      startTimeInMinutes,
+      endTimeInMinutes,
+    };
+  }
+}
+
+// Progress value 0-100 for a schedule based on current time
+function getProgressValue({
+  status,
+  currentTimeInMinutes,
+  startTimeInMinutes,
+  endTimeInMinutes,
+}: ReturnType<typeof getScheduleStatus>) {
+  if (status === "completed") return 100;
+  if (status === "upcoming") return 0;
+  return Math.min(
+    100,
+    Math.max(
+      0,
+      ((currentTimeInMinutes - startTimeInMinutes) /
+        (endTimeInMinutes - startTimeInMinutes)) *
+        100,
+    ),
+  );
+}
+
+// Vertical Timeline Component (Mobile)
+function VerticalTimeline({ schedules }: { schedules: ScheduleItem[] }) {
+  // Find the latest completed schedule index
+  let lastCompletedIndex = -1;
+  for (let i = 0; i < schedules.length; i++) {
+    const { status } = getScheduleStatus(schedules[i]);
+    if (status === "completed") {
+      lastCompletedIndex = i;
+    } else {
+      break;
+    }
+  }
+
+  return (
+    <div className="relative">
+      {/* Vertical Timeline Line - Continuous Line */}
+      <div className="absolute left-1/2 top-0 bottom-0 w-0.5 -translate-x-1/2 z-0 bg-gradient-to-b from-primary/40 via-primary/30 to-emerald-500/20">
+        {/* Highlight for completed segment */}
+        <div
+          className="absolute top-0 w-full bg-primary/40"
+          style={{
+            height: `${(lastCompletedIndex + 1) * (100 / schedules.length)}%`,
+          }}
+        ></div>
+        {/* Highlight for ongoing segment */}
+        {lastCompletedIndex + 1 < schedules.length && (
+          <div
+            className={`absolute w-full bg-primary animate-pulse`}
+            style={{
+              top: `${(lastCompletedIndex + 1) * (100 / schedules.length)}%`,
+              height: `${100 / schedules.length}%`,
+            }}
+          ></div>
+        )}
+      </div>
+
+      {/* Schedule Items */}
+      <div className="relative space-y-6">
+        {schedules.map((schedule, index) => {
+          const statusInfo = getScheduleStatus(schedule);
+          const { startTimeInMinutes, endTimeInMinutes } = statusInfo;
+          const { status } = statusInfo;
+
+          const isLeft = index % 2 === 0;
+
+          return (
+            <div
+              key={schedule.id}
+              className={`relative flex min-h-[80px] ${isLeft ? "justify-start" : "justify-end"}`}
+            >
+              {/* Timeline Node */}
+              <div
+                className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 h-6 w-6 rounded-full border-4 border-white shadow-md ${status === "ongoing" ? "bg-primary animate-pulse" : status === "completed" ? "bg-primary/40" : "bg-emerald-500"}`}
+              >
+                <div className="h-full w-full flex items-center justify-center text-[10px]">
+                  {status === "ongoing" && "⚡"}
+                  {status === "completed" && "✓"}
+                  {status === "upcoming" && "⏰"}
+                </div>
+              </div>
+
+              {/* Schedule Card */}
+              <div
+                className={`w-[calc(50%-20px)] min-w-[140px] ${isLeft ? "pr-6" : "pl-6"} animate-fade-in-up-delay-${(index % 3) + 1}`}
+              >
+                <div
+                  className={`border rounded-lg p-3 hover-lift transition-all ${status === "ongoing" ? "bg-primary/10 border-primary animate-pulse" : status === "completed" ? "bg-muted/30 border-muted opacity-80" : "bg-emerald-50 border-emerald-200"}`}
+                >
+                  {/* Time Slot */}
+                  <div className="mb-3">
+                    <div className="flex justify-between items-center gap-2 mb-1">
+                      <div className="flex flex-col">
+                        <div className="font-mono font-bold text-sm md:text-base">
+                          {schedule.startTime} - {schedule.endTime}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          <div>
+                            {Math.floor(
+                              (endTimeInMinutes - startTimeInMinutes) / 60,
+                            )}
+                            j{" "}
+                            {Math.floor(
+                              (endTimeInMinutes - startTimeInMinutes) % 60,
+                            )}
+                            m
+                          </div>
+                        </div>
+                      </div>
+                      <div
+                        className={`h-9 w-9 rounded-lg flex-shrink-0 ${status === "ongoing" ? "bg-primary/20" : status === "completed" ? "bg-muted" : "bg-emerald-100"} flex items-center justify-center`}
+                      >
+                        <span className="font-bold text-xs">
+                          {status === "ongoing"
+                            ? "⚡"
+                            : status === "completed"
+                              ? "✓"
+                              : "⏰"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Subject & Class */}
+                  <div className="space-y-1">
+                    <div className="font-semibold text-xs line-clamp-1">
+                      {schedule.subject}
+                    </div>
+                    <div className="flex flex-col sm:flex-row justify-between">
+                      <div className="flex items-center gap-1 text-xs">
+                        <GraduationCap className="h-3 w-3 text-muted-foreground" />
+                        <span className="line-clamp-1">
+                          {schedule.className}
+                        </span>
+                      </div>
+                      {schedule.room && (
+                        <div className="flex items-center gap-1 text-xs">
+                          <Building className="h-3 w-3 text-muted-foreground" />
+                          <span className="line-clamp-1">{schedule.room}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Progress */}
+                  <div className="mt-2">
+                    <Progress
+                      value={getProgressValue(statusInfo)}
+                      className="h-1"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                      <div>
+                        {status === "ongoing"
+                          ? "Sedang berlangsung..."
+                          : status === "completed"
+                            ? "Selesai"
+                            : "Akan datang"}
+                      </div>
+                      <span>
+                        {index + 1}/{schedules.length}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Horizontal Timeline Component (Desktop)
+function HorizontalTimeline({ schedules }: { schedules: ScheduleItem[] }) {
+  const now = new Date();
+  const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
+
+  return (
+    <div className="relative">
+      {/* Schedule Cards Container */}
+      <div className="relative flex flex-nowrap overflow-x-auto pb-12 gap-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent z-10">
+        {schedules.map((schedule, index) => {
+          const statusInfo = getScheduleStatus(schedule);
+          const { startTimeInMinutes, endTimeInMinutes } = statusInfo;
+          const { status } = statusInfo;
+
+          return (
+            <div
+              key={schedule.id}
+              className="relative flex flex-col items-center px-2"
+            >
+              {/* Schedule Card */}
+              <div
+                className={`flex-shrink-0 w-[260px] md:w-[300px] snap-center border rounded-xl p-4 transition-all duration-300 ${status === "ongoing" ? "bg-primary/10 border-primary hover:bg-primary/20 animate-pulse" : status === "completed" ? "bg-muted/30 border-muted hover:bg-muted/40 opacity-80" : "bg-emerald-50 border-emerald-200 hover:bg-emerald-100"} hover-scale animate-fade-in-up-delay-${(index % 3) + 1}`}
+              >
+                {/* Time Slot */}
+                <div className="mb-3">
+                  <div className="flex justify-between items-center gap-2 mb-1">
+                    <div className="flex flex-col">
+                      <div className="font-mono font-bold text-sm md:text-base">
+                        {schedule.startTime} - {schedule.endTime}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        <div>
+                          {Math.floor(
+                            (endTimeInMinutes - startTimeInMinutes) / 60,
+                          )}
+                          j{" "}
+                          {Math.floor(
+                            (endTimeInMinutes - startTimeInMinutes) % 60,
+                          )}
+                          m
+                        </div>
+                      </div>
+                    </div>
+                    <div
+                      className={`h-9 w-9 rounded-lg flex-shrink-0 ${status === "ongoing" ? "bg-primary/20" : status === "completed" ? "bg-muted" : "bg-emerald-100"} flex items-center justify-center`}
+                    >
+                      <span className="font-bold text-xs">
+                        {status === "ongoing"
+                          ? "⚡"
+                          : status === "completed"
+                            ? "✓"
+                            : "⏰"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Subject & Class */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="h-3 w-3 md:h-4 md:w-4 text-primary flex-shrink-0" />
+                    <span className="font-semibold text-xs md:text-sm line-clamp-1">
+                      {schedule.subject}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <div className="flex items-center gap-2">
+                      <GraduationCap className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-xs md:text-sm line-clamp-1">
+                        {schedule.className}
+                      </span>
+                    </div>
+
+                    {schedule.room && (
+                      <div className="flex items-center gap-2">
+                        <Building className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="text-xs md:text-sm line-clamp-1">
+                          {schedule.room}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Progress Indicator */}
+                <div className="mt-3">
+                  <Progress
+                    value={getProgressValue(statusInfo)}
+                    className="h-1"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                    <div>
+                      {status === "ongoing"
+                        ? "Sedang berlangsung..."
+                        : status === "completed"
+                          ? "Selesai"
+                          : "Akan datang"}
+                    </div>
+                    <span>
+                      {index + 1}/{schedules.length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Timeline Node Below Card */}
+              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2">
+                <div
+                  className={`h-4 w-4 rounded-full border-2 border-white shadow-md ${status === "ongoing" ? "bg-primary animate-pulse" : status === "completed" ? "bg-primary/40" : "bg-emerald-500"}`}
+                >
+                  <div className="h-full w-full flex items-center justify-center text-[8px]">
+                    {status === "ongoing" && "⚡"}
+                    {status === "completed" && "✓"}
+                    {status === "upcoming" && "⏰"}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Horizontal Timeline Line BELOW Cards */}
+      <div className="absolute left-0 right-0 bottom-4 z-0">
+        <Progress
+          value={(currentTimeInMinutes / (24 * 60)) * 100}
+          className="h-0.5"
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function ClockinPage() {
   const { data: session } = useSession();
   const [todayAttendance, setTodayAttendance] =
@@ -31,25 +391,61 @@ export default function ClockinPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [currentTime, setCurrentTime] = useState("");
+  const [todaySchedules, setTodaySchedules] = useState<
+    Array<{
+      id: string;
+      day: string;
+      startTime: string;
+      endTime: string;
+      subject: string;
+      className: string;
+      room: string;
+    }>
+  >([]);
 
   useEffect(() => {
     if (!session?.user?.id) return;
     let cancelled = false;
     async function load() {
       try {
-        const res = await fetch(`/api/attendance?userId=${session?.user?.id}`);
-        if (res.ok && !cancelled) {
-          const data = await res.json();
-          const today = new Date().toLocaleDateString("en-CA", {
-            timeZone: "Asia/Jakarta",
-          });
-          const todayRecord = data.find(
-            (a: TodayAttendance) => a.date === today,
-          );
-          if (!cancelled) setTodayAttendance(todayRecord || null);
+        const [attendanceRes, schedulesRes] = await Promise.all([
+          fetch(`/api/attendance?userId=${session?.user?.id}`),
+          fetch("/api/schedules"),
+        ]);
+
+        if (!cancelled) {
+          // Load attendance
+          if (attendanceRes.ok) {
+            const data = await attendanceRes.json();
+            const today = new Date().toLocaleDateString("en-CA", {
+              timeZone: "Asia/Jakarta",
+            });
+            const todayRecord = data.find(
+              (a: TodayAttendance) => a.date === today,
+            );
+            setTodayAttendance(todayRecord || null);
+          }
+
+          // Load today's schedules
+          if (schedulesRes.ok) {
+            const schedulesData = await schedulesRes.json();
+            const today = new Date().toLocaleDateString("id-ID", {
+              timeZone: "Asia/Jakarta",
+              weekday: "long",
+            });
+            // Capitalize first letter (e.g., "senin" → "Senin")
+            const todayDay =
+              today.charAt(0).toUpperCase() + today.slice(1).toLowerCase();
+            const todaysSchedules = schedulesData
+              .filter((s: { day: string }) => s.day === todayDay)
+              .sort((a: { startTime: string }, b: { startTime: string }) =>
+                a.startTime.localeCompare(b.startTime),
+              );
+            setTodaySchedules(todaysSchedules);
+          }
         }
       } catch {
-        toast.error("Gagal mengambil data absensi");
+        toast.error("Gagal mengambil data");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -356,6 +752,76 @@ export default function ClockinPage() {
                   : "Anda sudah absen masuk. Jangan lupa untuk absen pulang nanti."}
               </span>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Today's Schedule Timeline - Dual Mode (Vertical Mobile / Horizontal Desktop) */}
+      {todaySchedules.length > 0 && (
+        <Card className="border-0 shadow-sm hover-lift animate-fade-in">
+          <CardContent className="p-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between mb-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary" />
+                Jadwal Mengajar Hari Ini
+              </h3>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">
+                  {todaySchedules.length} sesi
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  {new Date().toLocaleDateString("id-ID", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                  })}
+                </span>
+              </div>
+            </div>
+
+            {/* Dual Mode Timeline */}
+            <div className="relative">
+              {/* Mobile Vertical Timeline */}
+              <div className="lg:hidden">
+                <VerticalTimeline schedules={todaySchedules} />
+              </div>
+
+              {/* Desktop Horizontal Timeline */}
+              <div className="hidden lg:block">
+                <HorizontalTimeline schedules={todaySchedules} />
+              </div>
+
+              {/* Timeline Legend */}
+              <div className="flex flex-wrap items-center justify-center gap-4 mt-6 pt-4 border-t text-xs text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
+                  <span>Akan Datang</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="h-2 w-2 rounded-full bg-primary animate-pulse"></div>
+                  <span>Sedang Berlangsung</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="h-2 w-2 rounded-full bg-muted-foreground"></div>
+                  <span>Selesai</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* No Schedule Today */}
+      {!loading && todaySchedules.length === 0 && (
+        <Card className="border-0 shadow-sm bg-muted/10">
+          <CardContent className="p-6 text-center">
+            <BookOpen className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">
+              Tidak ada jadwal mengajar hari ini
+            </p>
+            <p className="text-xs text-muted-foreground/70 mt-1">
+              Hubungi administrator untuk mengatur jadwal
+            </p>
           </CardContent>
         </Card>
       )}

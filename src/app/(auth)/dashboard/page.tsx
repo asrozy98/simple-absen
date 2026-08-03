@@ -11,7 +11,6 @@ import {
   UserX,
   Loader2,
   TrendingUp,
-  CheckCircle2,
   ArrowRight,
   CalendarDays,
   Timer,
@@ -128,7 +127,11 @@ export default function DashboardPage() {
 
   const pieData = [
     { name: "Hadir", value: data.todayStats.clockedIn, color: "#10b981" },
-    { name: "Belum Absen", value: data.todayStats.notClockedIn, color: "#f59e0b" },
+    {
+      name: "Belum Absen",
+      value: data.todayStats.notClockedIn,
+      color: "#f59e0b",
+    },
     { name: "Pulang", value: data.todayStats.clockedOut, color: "#6366f1" },
   ].filter((d) => d.value > 0);
 
@@ -138,7 +141,12 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p suppressHydrationWarning className="text-muted-foreground text-sm mt-1">{today}</p>
+          <p
+            suppressHydrationWarning
+            className="text-muted-foreground text-sm mt-1"
+          >
+            {today}
+          </p>
         </div>
         {isAdmin && (
           <Link
@@ -174,7 +182,9 @@ export default function DashboardPage() {
                 <ClipboardCheck className="h-5 w-5 text-emerald-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{data.todayStats.clockedIn}</p>
+                <p className="text-2xl font-bold">
+                  {data.todayStats.clockedIn}
+                </p>
                 <p className="text-xs text-muted-foreground">Hadir Hari Ini</p>
               </div>
             </div>
@@ -188,7 +198,9 @@ export default function DashboardPage() {
                 <UserX className="h-5 w-5 text-amber-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{data.todayStats.notClockedIn}</p>
+                <p className="text-2xl font-bold">
+                  {data.todayStats.notClockedIn}
+                </p>
                 <p className="text-xs text-muted-foreground">Belum Absen</p>
               </div>
             </div>
@@ -202,7 +214,9 @@ export default function DashboardPage() {
                 <Clock className="h-5 w-5 text-violet-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{data.todayStats.clockedOut}</p>
+                <p className="text-2xl font-bold">
+                  {data.todayStats.clockedOut}
+                </p>
                 <p className="text-xs text-muted-foreground">Sudah Pulang</p>
               </div>
             </div>
@@ -215,7 +229,9 @@ export default function DashboardPage() {
         <div className="bg-gradient-to-r from-primary via-primary/90 to-primary/80 p-5 sm:p-6 text-primary-foreground">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <div className="flex-1">
-              <p className="text-sm text-primary-foreground/80">Tingkat Kehadiran Hari Ini</p>
+              <p className="text-sm text-primary-foreground/80">
+                Tingkat Kehadiran Hari Ini
+              </p>
               <div className="flex items-baseline gap-2 mt-1">
                 <p className="text-3xl font-bold">{attendanceRate}%</p>
                 <p className="text-sm text-primary-foreground/70">
@@ -269,14 +285,23 @@ export default function DashboardPage() {
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" />
-              <CardTitle className="text-sm font-semibold">Absensi 7 Hari Terakhir</CardTitle>
+              <CardTitle className="text-sm font-semibold">
+                Absensi 7 Hari Terakhir
+              </CardTitle>
             </div>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="h-[250px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.last7Days} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                <BarChart
+                  data={data.last7Days}
+                  margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="#e5e7eb"
+                  />
                   <XAxis
                     dataKey="label"
                     tick={{ fontSize: 11, fill: "#9ca3af" }}
@@ -321,7 +346,9 @@ export default function DashboardPage() {
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
               <CalendarDays className="h-4 w-4 text-emerald-500" />
-              <CardTitle className="text-sm font-semibold">Status Kehadiran Hari Ini</CardTitle>
+              <CardTitle className="text-sm font-semibold">
+                Status Kehadiran Hari Ini
+              </CardTitle>
             </div>
           </CardHeader>
           <CardContent className="pt-0">
@@ -371,20 +398,29 @@ export default function DashboardPage() {
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-violet-500" />
-            <CardTitle className="text-sm font-semibold">Tren Absensi 6 Bulan Terakhir</CardTitle>
+            <CardTitle className="text-sm font-semibold">
+              Tren Absensi 6 Bulan Terakhir
+            </CardTitle>
           </div>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data.monthlyStats} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+              <AreaChart
+                data={data.monthlyStats}
+                margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
+              >
                 <defs>
                   <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
                     <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="#e5e7eb"
+                />
                 <XAxis
                   dataKey="label"
                   tick={{ fontSize: 11, fill: "#9ca3af" }}
@@ -424,7 +460,9 @@ export default function DashboardPage() {
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
               <UserX className="h-4 w-4 text-amber-500" />
-              <CardTitle className="text-sm font-semibold">Guru Belum Absen Hari Ini</CardTitle>
+              <CardTitle className="text-sm font-semibold">
+                Guru Belum Absen Hari Ini
+              </CardTitle>
             </div>
           </CardHeader>
           <CardContent className="pt-0">
@@ -449,7 +487,9 @@ export default function DashboardPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Timer className="h-4 w-4 text-primary" />
-              <CardTitle className="text-sm font-semibold">Absensi Terbaru</CardTitle>
+              <CardTitle className="text-sm font-semibold">
+                Absensi Terbaru
+              </CardTitle>
             </div>
             {isAdmin && (
               <Link
@@ -487,7 +527,10 @@ export default function DashboardPage() {
               </thead>
               <tbody>
                 {data.recentAttendance.map((a) => (
-                  <tr key={a.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
+                  <tr
+                    key={a.id}
+                    className="border-b last:border-0 hover:bg-muted/20 transition-colors"
+                  >
                     <td className="py-2.5 px-4">
                       <span className="font-medium text-sm">{a.userName}</span>
                     </td>
@@ -499,12 +542,18 @@ export default function DashboardPage() {
                       })}
                     </td>
                     <td className="py-2.5 px-4">
-                      <Badge variant="outline" className="border-emerald-200 text-emerald-600 bg-emerald-50 text-xs">
+                      <Badge
+                        variant="outline"
+                        className="border-emerald-200 text-emerald-600 bg-emerald-50 text-xs"
+                      >
                         {a.timeIn || "-"}
                       </Badge>
                     </td>
                     <td className="py-2.5 px-4">
-                      <Badge variant="outline" className="border-violet-200 text-violet-600 bg-violet-50 text-xs">
+                      <Badge
+                        variant="outline"
+                        className="border-violet-200 text-violet-600 bg-violet-50 text-xs"
+                      >
                         {a.timeOut || "-"}
                       </Badge>
                     </td>
@@ -531,20 +580,32 @@ export default function DashboardPage() {
                 </p>
                 <div className="flex gap-3 mt-2">
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase">Masuk</p>
-                    <Badge variant="outline" className="border-emerald-200 text-emerald-600 bg-emerald-50 text-xs">
+                    <p className="text-[10px] text-muted-foreground uppercase">
+                      Masuk
+                    </p>
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-200 text-emerald-600 bg-emerald-50 text-xs"
+                    >
                       {a.timeIn || "-"}
                     </Badge>
                   </div>
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase">Pulang</p>
-                    <Badge variant="outline" className="border-violet-200 text-violet-600 bg-violet-50 text-xs">
+                    <p className="text-[10px] text-muted-foreground uppercase">
+                      Pulang
+                    </p>
+                    <Badge
+                      variant="outline"
+                      className="border-violet-200 text-violet-600 bg-violet-50 text-xs"
+                    >
                       {a.timeOut || "-"}
                     </Badge>
                   </div>
                   {a.duration && (
                     <div>
-                      <p className="text-[10px] text-muted-foreground uppercase">Durasi</p>
+                      <p className="text-[10px] text-muted-foreground uppercase">
+                        Durasi
+                      </p>
                       <p className="text-xs font-medium">{a.duration}</p>
                     </div>
                   )}

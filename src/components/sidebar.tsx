@@ -12,11 +12,11 @@ import {
   Clock,
   History,
   Menu,
-  X,
   GraduationCap,
   User,
   Home,
   KeyRound,
+  Calendar,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -24,12 +24,39 @@ import { cn } from "@/lib/utils";
 const adminLinks = [
   { href: "/teachers", label: "Data Guru", icon: Users },
   { href: "/attendance", label: "Rekam Absensi", icon: ClipboardList },
+  { href: "/schedules", label: "Jadwal Mengajar", icon: Calendar },
 ];
 
 const userLinks = [
   { href: "/user/clockin", label: "Absen Hari Ini", icon: Clock },
   { href: "/user/history", label: "Riwayat Absen", icon: History },
 ];
+
+const schoolName = process.env.NEXT_PUBLIC_SCHOOL_NAME || "AbsenGuru";
+const schoolLogo = process.env.NEXT_PUBLIC_SCHOOL_LOGO;
+
+// ponytail: inline helper, used twice instead of a separate component
+function SchoolLogo({
+  iconClass,
+  boxClass,
+}: {
+  iconClass: string;
+  boxClass: string;
+}) {
+  if (schoolLogo) {
+    return (
+      <img
+        src={schoolLogo}
+        alt={schoolName}
+        className={`object-contain ${boxClass}`}
+        onError={(e) => {
+          e.currentTarget.style.display = "none";
+        }}
+      />
+    );
+  }
+  return <GraduationCap className={iconClass} />;
+}
 
 function SidebarContent({
   links,
@@ -48,11 +75,14 @@ function SidebarContent({
     <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground">
       {/* Brand */}
       <div className="flex items-center gap-3 px-5 h-[72px] border-b border-sidebar-border shrink-0 animate-slide-in-left">
-        <div className="h-9 w-9 rounded-xl bg-sidebar-primary flex items-center justify-center shadow-md shadow-sidebar-primary/30">
-          <GraduationCap className="h-5 w-5 text-sidebar-primary-foreground" />
+        <div className="h-9 w-9 rounded-xl bg-sidebar-primary flex items-center justify-center shadow-md shadow-sidebar-primary/30 overflow-hidden">
+          <SchoolLogo
+            boxClass="h-full w-full"
+            iconClass="h-5 w-5 text-sidebar-primary-foreground"
+          />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-sm text-white">AbsenGuru</p>
+          <p className="font-bold text-sm text-white truncate">{schoolName}</p>
           <p className="text-[11px] text-sidebar-foreground/60">Sistem Absensi Sekolah</p>
         </div>
       </div>
@@ -176,7 +206,10 @@ export default function Sidebar() {
 
   // Close mobile sidebar on route change
   useEffect(() => {
-    setMobileOpen(false);
+    const timeout = setTimeout(() => {
+      setMobileOpen(false);
+    }, 0);
+    return () => clearTimeout(timeout);
   }, [pathname]);
 
   return (
@@ -192,10 +225,13 @@ export default function Sidebar() {
           <Menu className="h-5 w-5" />
         </Button>
         <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
-            <GraduationCap className="h-4 w-4 text-primary-foreground" />
+          <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center overflow-hidden">
+            <SchoolLogo
+              boxClass="h-full w-full"
+              iconClass="h-4 w-4 text-primary-foreground"
+            />
           </div>
-          <span className="font-bold text-sm">AbsenGuru</span>
+          <span className="font-bold text-sm">{schoolName}</span>
         </Link>
         <div className="flex-1" />
         <Button

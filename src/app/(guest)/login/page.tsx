@@ -19,6 +19,31 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+const schoolName = process.env.NEXT_PUBLIC_SCHOOL_NAME || "Absen Guru";
+const schoolLogo = process.env.NEXT_PUBLIC_SCHOOL_LOGO;
+
+function SchoolLogo({
+  boxClass,
+  iconClass,
+}: {
+  boxClass: string;
+  iconClass: string;
+}) {
+  if (schoolLogo) {
+    return (
+      <img
+        src={schoolLogo}
+        alt={schoolName}
+        className={`object-contain ${boxClass}`}
+        onError={(e) => {
+          e.currentTarget.style.display = "none";
+        }}
+      />
+    );
+  }
+  return <GraduationCap className={iconClass} />;
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -66,13 +91,13 @@ export default function LoginPage() {
         {/* Content */}
         <div className="relative z-10 flex flex-col justify-center items-center w-full px-12 text-primary-foreground">
           <div className="mb-8 animate-fade-in">
-            <div className="h-24 w-24 rounded-3xl bg-white/15 backdrop-blur-sm flex items-center justify-center mb-6 mx-auto shadow-2xl">
-              <GraduationCap className="h-14 w-14" />
+            <div className="h-24 w-24 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center mb-6 mx-auto shadow-2xl overflow-hidden">
+              <SchoolLogo boxClass="h-24 w-24" iconClass="h-14 w-14" />
             </div>
             <h1 className="text-4xl font-bold tracking-tight text-center mb-3">
-              Absen Guru
+              {schoolName}
             </h1>
-            <p className="text-xl text-primary-foreground/80 max-w-sm text-center">
+            <p className="text-xl text-primary-foreground/80 text-center">
               Sistem Absensi Digital untuk Guru Sekolah
             </p>
           </div>
@@ -98,10 +123,13 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <div className="lg:hidden text-center mb-8 animate-fade-in">
-            <div className="h-16 w-16 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/25">
-              <GraduationCap className="h-9 w-9 text-primary-foreground" />
+            <div className="h-16 w-16 rounded-xl bg-primary flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/25 overflow-hidden">
+              <SchoolLogo
+                boxClass="h-24 w-24"
+                iconClass="h-9 w-9 text-primary-foreground"
+              />
             </div>
-            <h1 className="text-2xl font-bold">Absen Guru</h1>
+            <h1 className="text-2xl font-bold">{schoolName}</h1>
             <p className="text-muted-foreground text-sm mt-1">
               Sistem Absensi Digital
             </p>
@@ -178,7 +206,7 @@ export default function LoginPage() {
           </Card>
 
           <p className="text-center text-xs text-muted-foreground mt-8 animate-fade-in-up-delay-3">
-            &copy; {new Date().getFullYear()} &nbsp; Absen Guru &mdash; Sistem
+            &copy; {new Date().getFullYear()} &nbsp; {schoolName} &mdash; Sistem
             Absensi Sekolah
           </p>
         </div>
