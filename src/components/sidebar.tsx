@@ -17,6 +17,7 @@ import {
   Home,
   KeyRound,
   Calendar,
+  Smartphone,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ const adminLinks = [
   { href: "/teachers", label: "Data Guru", icon: Users },
   { href: "/attendance", label: "Rekam Absensi", icon: ClipboardList },
   { href: "/schedules", label: "Jadwal Mengajar", icon: Calendar },
+  { href: "/devices", label: "Perangkat Notifikasi", icon: Smartphone },
 ];
 
 const userLinks = [

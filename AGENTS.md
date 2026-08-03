@@ -168,3 +168,12 @@ Returns recap data for admin dashboard:
 - Use `suppressHydrationWarning` on elements rendering dynamic time/date
 - `useEffect` with `cancelled` flag pattern for async state updates (React Compiler)
 - Sidebar uses `render={<Button />}` pattern instead of `asChild` (base-ui)
+
+## Push Notification (Reminder Absen)
+- **Chanel**: Web Push API via `web-push` (tanpa Firebase). Service worker di `public/sw.js`.
+- **Env**: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `NOTIFY_CONTACT_EMAIL`, `CRON_SECRET`. Generate keys: `npx web-push generate-vapid-keys`.
+- **Storage**: Google Sheets tab "Devices" (`id | userId | token | updatedAt | browser | deviceType | os`), 1 baris per token/browser.
+- **Alur**: `(auth)/layout.tsx` → `notification-wire.tsx` meminta izin & subscribe → POST `/api/subscribe` (simpan token). Cron GitHub Actions memanggil `/api/remind?type=in|out` dengan header `Authorization: Bearer CRON_SECRET` → cek absensi hari ini (tz Asia/Jakarta) → kirim push ke semua token user → prune token 404/410.
+- **Scheduler**: `.github/workflows/remind-masuk.yml` (07:00 WIB = `0 0 * * *` UTC) & `remind-pulang.yml` (15:00 WIB = `0 8 * * *` UTC). Butuh 2 repo secrets di GitHub: `APP_URL` dan `CRON_SECRET`. Ubah jam = edit `cron:` + push.
+- **Batasan**: push hanya sampai jika user pernah buka situs & beri izin di browser itu (perlu token).
+

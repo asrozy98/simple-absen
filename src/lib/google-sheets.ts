@@ -18,6 +18,16 @@ export interface Attendance {
   duration: string | null;
 }
 
+export interface Device {
+  id: string;
+  userId: string;
+  token: string;
+  updatedAt: string;
+  browser: string;
+  deviceType: string;
+  os: string;
+}
+
 export interface Schedule {
   id: string;
   userId: string;
@@ -43,6 +53,13 @@ function getSpreadsheetId(): string {
   return process.env.GOOGLE_SPREADSHEET_ID || "";
 }
 
+const SHEET_HEADERS: Record<string, string[]> = {
+  Users: ["id", "username", "password", "name", "role", "createdAt"],
+  Attendance: ["id", "userId", "date", "timeIn", "timeOut", "duration"],
+  Schedules: ["id", "userId", "day", "startTime", "endTime", "subject", "className", "room", "createdAt"],
+  Devices: ["id", "userId", "token", "updatedAt", "browser", "deviceType", "os"],
+};
+
 async function ensureSheetExists(sheets: ReturnType<typeof google.sheets>, spreadsheetId: string, sheetName: string) {
   const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
   const existingSheets = spreadsheet.data.sheets?.map((s) => s.properties?.title) || [];
@@ -53,7 +70,35 @@ async function ensureSheetExists(sheets: ReturnType<typeof google.sheets>, sprea
         requests: [{ addSheet: { properties: { title: sheetName } } }],
       },
     });
+    const headers = SHEET_HEADERS[sheetName];
+    if (headers) {
+      await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: `${sheetName}!A1`,
+        valueInputOption: "RAW",
+        requestBody: { values: [headers] },
+      });
+    }
   }
+}
+
+async function ensureSheetHeaders(sheets: ReturnType<typeof google.sheets>, spreadsheetId: string, sheetName: string) {
+  const expected = SHEET_HEADERS[sheetName];
+  if (!expected) return;
+  await ensureSheetExists(sheets, spreadsheetId, sheetName);
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${sheetName}!A1`,
+  });
+  const current = res.data.values?.[0] || [];
+  if (current.length >= expected.length) return;
+  const missing = expected.slice(current.length);
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `${sheetName}!${String.fromCharCode(64 + current.length + 1)}1`,
+    valueInputOption: "RAW",
+    requestBody: { values: [missing] },
+  });
 }
 
 export async function getUsers(): Promise<User[]> {
@@ -340,6 +385,103 @@ export async function deleteSchedule(id: string): Promise<void> {
   if (rowIndex === -1) throw new Error("Schedule not found");
 
   const sheetRange = `Schedules!A${rowIndex + 2}:I${rowIndex + 2}`;
+  await sheets.spreadsheets.values.clear({
+    spreadsheetId,
+    range: sheetRange,
+  });
+}
+
+export async function getDevices(): Promise<Device[]> {
+  const sheets = await getSheets();
+  const spreadsheetId = getSpreadsheetId();
+  await ensureSheetExists(sheets, spreadsheetId, "Devices");
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: "Devices!A2:G",
+  });
+  const rows = res.data.values || [];
+  return rows.map((row) => ({
+    id: row[0] || "",
+    userId: row[1] || "",
+    token: row[2] || "",
+    updatedAt: row[3] || "",
+    browser: row[4] || "",
+    deviceType: row[5] || "",
+    os: row[6] || "",
+  }));
+}
+
+export async function getDevicesByUser(userId: string): Promise<Device[]> {
+  const devices = await getDevices();
+  return devices.filter((d) => d.userId === userId);
+}
+
+export async function addDeviceToken(
+  userId: string,
+  token: string,
+  browser: string,
+  deviceType: string,
+  os: string,
+): Promise<void> {
+  const sheets = await getSheets();
+  const spreadsheetId = getSpreadsheetId();
+  await ensureSheetExists(sheets, spreadsheetId, "Devices");
+  await ensureSheetHeaders(sheets, spreadsheetId, "Devices");
+
+  const devices = await getDevices();
+  const existingIndex = devices.findIndex((d) => d.token === token);
+
+  if (existingIndex !== -1) {
+    // dedupe: update userId + updatedAt + device info in place
+    const sheetRange = `Devices!B${existingIndex + 2}:G${existingIndex + 2}`;
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: sheetRange,
+      valueInputOption: "RAW",
+      requestBody: {
+        values: [[userId, token, new Date().toISOString(), browser, deviceType, os]],
+      },
+    });
+    return;
+  }
+
+  const newDevice: Device = {
+    id: crypto.randomUUID(),
+    userId,
+    token,
+    updatedAt: new Date().toISOString(),
+    browser,
+    deviceType,
+    os,
+  };
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: "Devices!A:G",
+    valueInputOption: "RAW",
+    requestBody: {
+      values: [[
+        newDevice.id,
+        newDevice.userId,
+        newDevice.token,
+        newDevice.updatedAt,
+        newDevice.browser,
+        newDevice.deviceType,
+        newDevice.os,
+      ]],
+    },
+  });
+}
+
+export async function deleteDeviceByToken(token: string): Promise<void> {
+  const sheets = await getSheets();
+  const spreadsheetId = getSpreadsheetId();
+
+  const devices = await getDevices();
+  const rowIndex = devices.findIndex((d) => d.token === token);
+  if (rowIndex === -1) return;
+
+  const sheetRange = `Devices!A${rowIndex + 2}:G${rowIndex + 2}`;
   await sheets.spreadsheets.values.clear({
     spreadsheetId,
     range: sheetRange,
