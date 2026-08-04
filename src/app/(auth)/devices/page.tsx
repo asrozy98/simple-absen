@@ -33,6 +33,7 @@ export default function DevicesPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability
     loadData();
   }, []);
 
@@ -131,7 +132,9 @@ export default function DevicesPage() {
                 <Globe className="h-5 w-5 text-violet-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{devices.length - userCount}</p>
+                <p className="text-2xl font-bold">
+                  {devices.length - userCount}
+                </p>
                 <p className="text-xs text-muted-foreground">Device Ekstra</p>
               </div>
             </div>

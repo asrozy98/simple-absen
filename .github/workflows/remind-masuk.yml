@@ -1,7 +1,10 @@
 name: Reminder Absen Masuk
 on:
   schedule:
-    - cron: "0 0 * * *"
+    - cron: "7 7 * * *"
+      timezone: "Asia/Jakarta"
+    - cron: "45 7 * * *"
+      timezone: "Asia/Jakarta"
   workflow_dispatch:
 
 jobs:

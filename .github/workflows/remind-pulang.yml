@@ -1,7 +1,10 @@
 name: Reminder Absen Pulang
 on:
   schedule:
-    - cron: "0 8 * * *"
+    - cron: "7 15 * * *"
+      timezone: "Asia/Jakarta"
+    - cron: "10 14 * * *"
+      timezone: "Asia/Jakarta"
   workflow_dispatch:
 
 jobs:
