@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import { todayJakarta } from "@/lib/utils";
 
 export interface User {
   id: string;
@@ -40,13 +41,18 @@ export interface Schedule {
   createdAt: string;
 }
 
+let sheetsClient: ReturnType<typeof google.sheets> | null = null;
+
 async function getSheets() {
-  const key = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY || "{}");
-  const auth = new google.auth.GoogleAuth({
-    credentials: key,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
-  return google.sheets({ version: "v4", auth });
+  if (!sheetsClient) {
+    const key = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY || "{}");
+    const auth = new google.auth.GoogleAuth({
+      credentials: key,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    sheetsClient = google.sheets({ version: "v4", auth });
+  }
+  return sheetsClient;
 }
 
 function getSpreadsheetId(): string {
@@ -60,7 +66,14 @@ const SHEET_HEADERS: Record<string, string[]> = {
   Devices: ["id", "userId", "token", "updatedAt", "browser", "deviceType", "os"],
 };
 
+// cache per sheet (keyed by spreadsheetId) to skip the metadata/header
+// round-trip on every read — ponytail: fine for a fixed spreadsheet per deploy
+const confirmedSheets = new Set<string>();
+const confirmedHeaderLen = new Map<string, number>();
+
 async function ensureSheetExists(sheets: ReturnType<typeof google.sheets>, spreadsheetId: string, sheetName: string) {
+  const cacheKey = `${spreadsheetId}:${sheetName}`;
+  if (confirmedSheets.has(cacheKey)) return;
   const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
   const existingSheets = spreadsheet.data.sheets?.map((s) => s.properties?.title) || [];
   if (!existingSheets.includes(sheetName)) {
@@ -80,18 +93,25 @@ async function ensureSheetExists(sheets: ReturnType<typeof google.sheets>, sprea
       });
     }
   }
+  confirmedSheets.add(cacheKey);
 }
 
 async function ensureSheetHeaders(sheets: ReturnType<typeof google.sheets>, spreadsheetId: string, sheetName: string) {
   const expected = SHEET_HEADERS[sheetName];
   if (!expected) return;
   await ensureSheetExists(sheets, spreadsheetId, sheetName);
+  const cacheKey = `${spreadsheetId}:${sheetName}`;
+  const known = confirmedHeaderLen.get(cacheKey);
+  if (known !== undefined && known >= expected.length) return;
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: `${sheetName}!A1`,
   });
   const current = res.data.values?.[0] || [];
-  if (current.length >= expected.length) return;
+  if (current.length >= expected.length) {
+    confirmedHeaderLen.set(cacheKey, current.length);
+    return;
+  }
   const missing = expected.slice(current.length);
   await sheets.spreadsheets.values.update({
     spreadsheetId,
@@ -99,6 +119,7 @@ async function ensureSheetHeaders(sheets: ReturnType<typeof google.sheets>, spre
     valueInputOption: "RAW",
     requestBody: { values: [missing] },
   });
+  confirmedHeaderLen.set(cacheKey, expected.length);
 }
 
 export async function getUsers(): Promise<User[]> {
@@ -184,7 +205,7 @@ export async function clockIn(userId: string): Promise<Attendance> {
   const spreadsheetId = getSpreadsheetId();
   await ensureSheetExists(sheets, spreadsheetId, "Attendance");
 
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+  const today = todayJakarta();
   const now = new Date().toLocaleTimeString("en-GB", { timeZone: "Asia/Jakarta", hour12: false });
 
   const existing = await getAttendanceByUserAndDate(userId, today);
@@ -217,7 +238,7 @@ export async function clockOut(userId: string): Promise<Attendance> {
   const sheets = await getSheets();
   const spreadsheetId = getSpreadsheetId();
 
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+  const today = todayJakarta();
   const now = new Date().toLocaleTimeString("en-GB", { timeZone: "Asia/Jakarta", hour12: false });
 
   const existing = await getAttendanceByUserAndDate(userId, today);
@@ -232,7 +253,8 @@ export async function clockOut(userId: string): Promise<Attendance> {
   const timeOutParts = now.split(":").map(Number);
   const timeInMinutes = timeInParts[0] * 60 + timeInParts[1];
   const timeOutMinutes = timeOutParts[0] * 60 + timeOutParts[1];
-  const durationMinutes = timeOutMinutes - timeInMinutes;
+  let durationMinutes = timeOutMinutes - timeInMinutes;
+  if (durationMinutes < 0) durationMinutes += 1440; // lintas tengah malam
   const hours = Math.floor(durationMinutes / 60);
   const minutes = durationMinutes % 60;
   const duration = `${hours}j ${minutes}m`;
@@ -412,11 +434,6 @@ export async function getDevices(): Promise<Device[]> {
   }));
 }
 
-export async function getDevicesByUser(userId: string): Promise<Device[]> {
-  const devices = await getDevices();
-  return devices.filter((d) => d.userId === userId);
-}
-
 export async function addDeviceToken(
   userId: string,
   token: string,
@@ -473,12 +490,12 @@ export async function addDeviceToken(
   });
 }
 
-export async function deleteDeviceByToken(token: string): Promise<void> {
+async function deleteDeviceRow(match: (d: Device) => boolean): Promise<void> {
   const sheets = await getSheets();
   const spreadsheetId = getSpreadsheetId();
 
   const devices = await getDevices();
-  const rowIndex = devices.findIndex((d) => d.token === token);
+  const rowIndex = devices.findIndex(match);
   if (rowIndex === -1) return;
 
   const sheetRange = `Devices!A${rowIndex + 2}:G${rowIndex + 2}`;
@@ -486,4 +503,12 @@ export async function deleteDeviceByToken(token: string): Promise<void> {
     spreadsheetId,
     range: sheetRange,
   });
+}
+
+export async function deleteDeviceByToken(token: string): Promise<void> {
+  await deleteDeviceRow((d) => d.token === token);
+}
+
+export async function deleteDeviceById(id: string): Promise<void> {
+  await deleteDeviceRow((d) => d.id === id);
 }

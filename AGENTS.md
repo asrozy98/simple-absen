@@ -42,6 +42,10 @@ src/
 │   │   │   └── page.tsx              # List guru + register guru baru
 │   │   ├── attendance/
 │   │   │   └── page.tsx              # Semua absensi guru
+│   │   ├── schedules/
+│   │   │   └── page.tsx              # Jadwal mengajar guru
+│   │   ├── devices/
+│   │   │   └── page.tsx              # Perangkat notifikasi (admin)
 │   │   ├── user/
 │   │   │   ├── clockin/
 │   │   │   │   └── page.tsx          # Absen masuk/pulang (live clock)
@@ -63,6 +67,14 @@ src/
 │       │   └── route.ts              # GET, POST clock-in/out
 │       ├── dashboard/
 │       │   └── route.ts              # GET recap data (stats, charts, recent)
+│       ├── schedules/
+│       │   └── route.ts              # GET/POST/PUT/DELETE jadwal mengajar
+│       ├── subscribe/
+│       │   └── route.ts              # POST/DELETE token push (user-agent → browser/OS)
+│       ├── devices/
+│       │   └── route.ts              # GET semua perangkat (admin), DELETE
+│       ├── remind/
+│       │   └── route.ts              # POST cron reminder (Bearer CRON_SECRET, ?type=in|out)
 │       └── profile/
 │           └── change-password/
 │               └── route.ts          # POST change password
@@ -72,8 +84,8 @@ src/
 │   └── providers.tsx                 # SessionProvider wrapper
 ├── lib/
 │   ├── auth.ts                       # NextAuth config + auth options
-│   ├── google-sheets.ts              # Google Sheets API client
-│   └── utils.ts                      # cn() helper (shadcn)
+│   ├── google-sheets.ts              # Google Sheets API client (getSheets/ensureSheet di-cache)
+│   └── utils.ts                      # cn() helper (shadcn), todayJakarta()
 └── types/
     └── next-auth.d.ts                # TypeScript declarations for session.user (id, role, username)
 ```
@@ -171,9 +183,9 @@ Returns recap data for admin dashboard:
 
 ## Push Notification (Reminder Absen)
 - **Chanel**: Web Push API via `web-push` (tanpa Firebase). Service worker di `public/sw.js`.
-- **Env**: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `NOTIFY_CONTACT_EMAIL`, `CRON_SECRET`. Generate keys: `npx web-push generate-vapid-keys`.
-- **Storage**: Google Sheets tab "Devices" (`id | userId | token | updatedAt | browser | deviceType | os`), 1 baris per token/browser.
-- **Alur**: `(auth)/layout.tsx` → `notification-wire.tsx` meminta izin & subscribe → POST `/api/subscribe` (simpan token). Cron GitHub Actions memanggil `/api/remind?type=in|out` dengan header `Authorization: Bearer CRON_SECRET` → cek absensi hari ini (tz Asia/Jakarta) → kirim push ke semua token user → prune token 404/410.
-- **Scheduler**: `.github/workflows/remind-masuk.yml` (07:07 & 07:45 WIB = `cron: "7 7 * * *"` + `cron: "45 7 * * *"` + `timezone: "Asia/Jakarta"`) & `remind-pulang.yml` (15:07 & 14:10 WIB = `cron: "7 15 * * *"` + `cron: "10 14 * * *"` + `timezone: "Asia/Jakarta"`). Butuh 2 repo secrets di GitHub: `APP_URL` dan `CRON_SECRET`. Ubah jam = edit `cron:` + push. **Catatan**: GitHub Actions menjalankan scheduled workflow dengan delay acak (bisa 30 menit–jam saat top-of-hour); `timezone:` + menit :07 menghindari bottleneck UTC.
+- **Env**: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `NOTIFY_CONTACT_EMAIL`, `CRON_SECRET`, `NEXT_PUBLIC_SCHOOL_LOGO` (fallback `/vercel.svg`). Generate keys: `npx web-push generate-vapid-keys`.
+- **Storage**: Google Sheets tab "Devices" (`id | userId | token | updatedAt | browser | deviceType | os`), 1 baris per token/browser. Info browser/OS di-parse server-side dari User-Agent di `/api/subscribe`.
+- **Alur**: `(auth)/layout.tsx` → `notification-wire.tsx` meminta izin & subscribe → POST `/api/subscribe` (simpan token, dedupe by endpoint, update updatedAt tiap login). Scheduler memanggil POST `/api/remind?type=in|out` dengan header `Authorization: Bearer CRON_SECRET` → cek absensi hari ini (tz Asia/Jakarta) → kirim push ke semua token user → prune token 404/410.
+- **Scheduler aktif**: **Cloudflare Workers Cron Triggers** (UTC): `7 0 * * *` (07:07 WIB), `45 0 * * *` (07:45 WIB), `10 7 * * *` (14:10 WIB), `7 8 * * *` (15:07 WIB). 1 Worker, switch by `event.cron`, env secrets `APP_URL` + `CRON_SECRET`. **Cadangan manual**: `.github/workflows/remind-masuk.yml` & `remind-pulang.yml` (schedule GitHub di-comment karena delay acak 30 mnt–jam, hanya `workflow_dispatch`; butuh repo secrets `APP_URL` + `CRON_SECRET`).
 - **Batasan**: push hanya sampai jika user pernah buka situs & beri izin di browser itu (perlu token).
 

@@ -222,7 +222,7 @@ export default function DevicesPage() {
                           <div className="flex flex-col">
                             <span className="text-sm font-medium">
                               {device.browser || "Browser"}{" "}
-                              {device.os && device.os !== "Unknown" && (
+                              {device.os && (
                                 <span className="text-muted-foreground font-normal">
                                   · {device.os}
                                 </span>
@@ -289,9 +289,7 @@ export default function DevicesPage() {
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {device.browser || "Browser"}
-                          {device.os && device.os !== "Unknown"
-                            ? ` · ${device.os}`
-                            : ""}
+                          {device.os ? ` · ${device.os}` : ""}
                           {" · "}
                           {device.deviceType || "Perangkat"}
                         </p>

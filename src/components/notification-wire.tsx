@@ -25,7 +25,7 @@ export default function NotificationWire() {
     subscribed.current = true;
     const key: string = vapidKey;
 
-    let setup = async function init() {
+    const setup = async () => {
       try {
         console.log("[notif] register SW");
         await navigator.serviceWorker.register("/sw.js");
@@ -85,7 +85,10 @@ export default function NotificationWire() {
           return;
         }
         console.log("[notif] token saved");
-        toast.success("Notifikasi reminder absen aktif");
+        if (!sessionStorage.getItem("notif-toast-shown")) {
+          sessionStorage.setItem("notif-toast-shown", "1");
+          toast.success("Notifikasi reminder absen aktif");
+        }
       } catch (err) {
         console.error("[notif] error:", err);
         toast.error(`Gagal mengaktifkan notifikasi: ${err instanceof Error ? err.message : String(err)}`);

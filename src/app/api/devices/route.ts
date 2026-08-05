@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import {
-  getDevices,
-  getUsers,
-  deleteDeviceByToken,
-} from "@/lib/google-sheets";
+import { getDevices, getUsers, deleteDeviceById } from "@/lib/google-sheets";
 
 export const dynamic = "force-dynamic";
 
@@ -52,13 +48,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "ID wajib diisi" }, { status: 400 });
     }
 
-    const devices = await getDevices();
-    const device = devices.find((d) => d.id === id);
-    if (!device) {
-      return NextResponse.json({ error: "Perangkat tidak ditemukan" }, { status: 404 });
-    }
-
-    await deleteDeviceByToken(device.token);
+    await deleteDeviceById(id);
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Gagal menghapus perangkat" }, { status: 500 });

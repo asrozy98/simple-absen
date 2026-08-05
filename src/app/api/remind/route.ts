@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import webpush from "web-push";
+import { todayJakarta } from "@/lib/utils";
 import {
   getUsers,
   getAttendance,
-  getDevicesByUser,
+  getDevices,
   deleteDeviceByToken,
+  type Device,
 } from "@/lib/google-sheets";
 
 const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "";
@@ -14,7 +16,7 @@ const contactEmail = process.env.NOTIFY_CONTACT_EMAIL || "";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  // Protected by shared secret (GitHub Actions cron)
+  // Protected by shared secret (Cloudflare cron / manual trigger)
   const authHeader = request.headers.get("authorization") || "";
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -33,13 +35,19 @@ export async function POST(request: Request) {
     const url = new URL(request.url);
     const type = url.searchParams.get("type") === "out" ? "out" : "in";
 
-    const today = new Date().toLocaleDateString("en-CA", {
-      timeZone: "Asia/Jakarta",
-    });
+    const today = todayJakarta();
     const users = (await getUsers()).filter((u) => u.role === "user");
     const attendanceToday = (await getAttendance()).filter(
       (a) => a.date === today,
     );
+
+    // group devices once instead of N+1 getDevices() calls per user
+    const devicesByUser = new Map<string, Device[]>();
+    for (const d of await getDevices()) {
+      const list = devicesByUser.get(d.userId);
+      if (list) list.push(d);
+      else devicesByUser.set(d.userId, [d]);
+    }
 
     let targets = users;
     if (type === "in") {
@@ -67,7 +75,7 @@ export async function POST(request: Request) {
         type === "in"
           ? `Halo ${user.name}, Anda belum absen masuk hari ini. Jangan lupa!`
           : `${user.name}, Anda sudah absen masuk tapi belum absen pulang. Jangan lupa!`;
-      const devices = await getDevicesByUser(user.id);
+      const devices = devicesByUser.get(user.id) || [];
       for (const device of devices) {
         try {
           let sub: { endpoint: string; keys: { p256dh: string; auth: string } };
