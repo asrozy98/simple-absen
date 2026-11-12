@@ -27,11 +27,15 @@ const adminLinks = [
   { href: "/attendance", label: "Rekam Absensi", icon: ClipboardList },
   { href: "/schedules", label: "Jadwal Mengajar", icon: Calendar },
   { href: "/devices", label: "Perangkat Notifikasi", icon: Smartphone },
+  { href: "/students", label: "Data Siswa", icon: GraduationCap },
+  { href: "/students/history", label: "Riwayat Sholat Siswa", icon: History },
 ];
 
 const userLinks = [
   { href: "/user/clockin", label: "Absen Hari Ini", icon: Clock },
   { href: "/user/history", label: "Riwayat Absen", icon: History },
+  { href: "/students/attendance", label: "Absen Sholat Siswa", icon: ClipboardList },
+  { href: "/students/history", label: "Riwayat Sholat Siswa", icon: History },
 ];
 
 const schoolName = process.env.NEXT_PUBLIC_SCHOOL_NAME || "AbsenGuru";

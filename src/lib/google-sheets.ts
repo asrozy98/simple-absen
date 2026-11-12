@@ -41,6 +41,25 @@ export interface Schedule {
   createdAt: string;
 }
 
+export interface Student {
+  id: string;
+  name: string;
+  className: string;
+  gender: "L" | "P";
+  createdAt: string;
+}
+
+export interface StudentAttendance {
+  id: string;
+  studentId: string;
+  teacherId: string;
+  date: string;
+  prayerType: "Dhuha" | "Dhuhur";
+  status: "Alfa" | "Hadir" | "Sakit" | "Haid" | "Terlambat";
+  time: string;
+  createdAt: string;
+}
+
 let sheetsClient: ReturnType<typeof google.sheets> | null = null;
 
 async function getSheets() {
@@ -64,6 +83,8 @@ const SHEET_HEADERS: Record<string, string[]> = {
   Attendance: ["id", "userId", "date", "timeIn", "timeOut", "duration"],
   Schedules: ["id", "userId", "day", "startTime", "endTime", "subject", "className", "room", "createdAt"],
   Devices: ["id", "userId", "token", "updatedAt", "browser", "deviceType", "os"],
+  Students: ["id", "name", "className", "gender", "createdAt"],
+  StudentAttendance: ["id", "studentId", "teacherId", "date", "prayerType", "status", "time", "createdAt"],
 };
 
 // cache per sheet (keyed by spreadsheetId) to skip the metadata/header
@@ -511,4 +532,114 @@ export async function deleteDeviceByToken(token: string): Promise<void> {
 
 export async function deleteDeviceById(id: string): Promise<void> {
   await deleteDeviceRow((d) => d.id === id);
+}
+
+// Students
+export async function getStudents(): Promise<Student[]> {
+  const sheets = await getSheets();
+  const spreadsheetId = getSpreadsheetId();
+  await ensureSheetExists(sheets, spreadsheetId, "Students");
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: "Students!A2:E",
+  });
+  const rows = res.data.values || [];
+  return rows.map((row) => ({
+    id: row[0] || "",
+    name: row[1] || "",
+    className: row[2] || "",
+    gender: (row[3] as "L" | "P") || "L",
+    createdAt: row[4] || "",
+  }));
+}
+
+export async function addStudent(student: Omit<Student, "id" | "createdAt">): Promise<Student> {
+  const sheets = await getSheets();
+  const spreadsheetId = getSpreadsheetId();
+  await ensureSheetExists(sheets, spreadsheetId, "Students");
+
+  const newStudent: Student = {
+    id: crypto.randomUUID(),
+    ...student,
+    createdAt: new Date().toISOString(),
+  };
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: "Students!A:E",
+    valueInputOption: "RAW",
+    requestBody: {
+      values: [[newStudent.id, newStudent.name, newStudent.className, newStudent.gender, newStudent.createdAt]],
+    },
+  });
+
+  return newStudent;
+}
+
+// Student Attendance
+export async function getStudentAttendance(date?: string, prayerType?: string): Promise<StudentAttendance[]> {
+  const sheets = await getSheets();
+  const spreadsheetId = getSpreadsheetId();
+  await ensureSheetExists(sheets, spreadsheetId, "StudentAttendance");
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: "StudentAttendance!A2:H",
+  });
+  const rows = res.data.values || [];
+  let attendance: StudentAttendance[] = rows.map((row) => ({
+    id: row[0] || "",
+    studentId: row[1] || "",
+    teacherId: row[2] || "",
+    date: row[3] || "",
+    prayerType: (row[4] as "Dhuha" | "Dhuhur") || "Dhuha",
+    status: (row[5] as StudentAttendance["status"]) || "Alfa",
+    time: row[6] || "",
+    createdAt: row[7] || "",
+  }));
+
+  if (date) attendance = attendance.filter((a) => a.date === date);
+  if (prayerType) attendance = attendance.filter((a) => a.prayerType === prayerType);
+
+  return attendance;
+}
+
+export async function bulkSaveStudentAttendance(
+  teacherId: string,
+  date: string,
+  prayerType: "Dhuha" | "Dhuhur",
+  records: { studentId: string; status: StudentAttendance["status"]; time: string }[]
+): Promise<{ saved: number; skipped: string[] }> {
+  const sheets = await getSheets();
+  const spreadsheetId = getSpreadsheetId();
+  await ensureSheetExists(sheets, spreadsheetId, "StudentAttendance");
+
+  // Fetch existing attendance for this date + prayerType
+  const existing = await getStudentAttendance(date, prayerType);
+  const existingKeys = new Set(existing.map((a) => a.studentId));
+
+  // Filter out students who already have attendance for this date/prayerType
+  const newRecords = records.filter((r) => !existingKeys.has(r.studentId));
+  const skipped = records.filter((r) => existingKeys.has(r.studentId)).map((r) => r.studentId);
+
+  if (newRecords.length === 0) {
+    return { saved: 0, skipped };
+  }
+
+  const rows = newRecords.map((r) => {
+    const createdAt = new Date().toISOString();
+    return [crypto.randomUUID(), r.studentId, teacherId, date, prayerType, r.status, r.time, createdAt];
+  });
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: "StudentAttendance!A:H",
+    valueInputOption: "RAW",
+    requestBody: {
+      values: rows,
+    },
+  });
+
+  return { saved: newRecords.length, skipped };
 }

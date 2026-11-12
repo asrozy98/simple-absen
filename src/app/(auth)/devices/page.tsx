@@ -202,7 +202,7 @@ export default function DevicesPage() {
                   <tbody>
                     {filteredDevices.map((device, index) => (
                       <tr
-                        key={device.id}
+                        key={device.id + "-" + index}
                         className="border-b last:border-0 hover:bg-muted/20 transition-colors"
                       >
                         <td className="py-3.5 px-5 text-sm text-muted-foreground">
@@ -266,9 +266,9 @@ export default function DevicesPage() {
 
               {/* Mobile Cards */}
               <div className="md:hidden divide-y">
-                {filteredDevices.map((device) => (
+                {filteredDevices.map((device, index) => (
                   <div
-                    key={device.id}
+                    key={device.id + "-" + index}
                     className="p-4 hover:bg-muted/20 transition-colors"
                   >
                     <div className="flex items-start gap-3">
