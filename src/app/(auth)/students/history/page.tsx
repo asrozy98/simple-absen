@@ -175,16 +175,16 @@ export default function StudentAttendanceHistoryPage() {
       </Card>
 
       <Card className="animate-fade-in">
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[80px]">No</TableHead>
-                <TableHead>Nama Siswa</TableHead>
-                <TableHead>Kelas</TableHead>
-                <TableHead>Jenis Sholat</TableHead>
-                <TableHead className="text-center">Status</TableHead>
-                <TableHead className="hidden md:table-cell">Waktu Input</TableHead>
+                <TableHead className="min-w-[140px]">Nama Siswa</TableHead>
+                <TableHead className="min-w-[80px]">Kelas</TableHead>
+                <TableHead className="min-w-[100px]">Jenis Sholat</TableHead>
+                <TableHead className="text-center min-w-[100px]">Status</TableHead>
+                <TableHead className="min-w-[120px]">Waktu Input</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -212,7 +212,7 @@ export default function StudentAttendanceHistoryPage() {
                       <TableCell>{student.className}</TableCell>
                       <TableCell>{record.prayerType}</TableCell>
                       <TableCell className="text-center">{getStatusBadge(record.status)}</TableCell>
-                      <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                         {new Date(record.createdAt).toLocaleTimeString("id-ID")}
                       </TableCell>
                     </TableRow>

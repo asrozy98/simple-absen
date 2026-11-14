@@ -165,17 +165,26 @@ export default function StudentAttendancePage() {
 
       if (!res.ok) {
         if (res.status === 409) {
-          toast.warning(`${data.skipped?.length || 0} siswa sudah absen ${filters.prayerType} hari ini`);
+          toast.warning(
+            `${data.skipped?.length || 0} siswa sudah absen ${filters.prayerType} hari ini`,
+          );
         } else {
           throw new Error(data.error || "Gagal menyimpan");
         }
         return;
       }
 
-      if (data.skipped?.length > 0) {
-        toast.info(`${data.saved} siswa disimpan, ${data.skipped.length} sudah absen (dilewati)`);
+      const total = (data.saved || 0) + (data.updated || 0);
+      if (data.updated && data.updated > 0) {
+        toast.success(
+          `${data.updated} siswa diperbarui${data.saved ? `, ${data.saved} baru` : ""}`,
+        );
+      } else if (data.skipped?.length > 0) {
+        toast.info(
+          `${data.saved} siswa disimpan, ${data.skipped.length} sudah absen (dilewati)`,
+        );
       } else {
-        toast.success(`${data.saved} siswa berhasil disimpan`);
+        toast.success(`${total} siswa berhasil disimpan`);
       }
     } catch {
       toast.error("Gagal menyimpan absensi");
@@ -198,7 +207,7 @@ export default function StudentAttendancePage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
             <div className="flex flex-col gap-2">
               <Label className="text-xs">Tanggal</Label>
               <Input
@@ -246,7 +255,7 @@ export default function StudentAttendancePage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 sm:col-span-2 lg:col-span-1">
               <Label className="text-xs">Cari Nama</Label>
               <Input
                 placeholder="Ketik nama siswa..."
@@ -254,8 +263,13 @@ export default function StudentAttendancePage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <div className="flex items-center">
-              <Button onClick={loadStudents} disabled={loading} size="xl">
+            <div className="flex items-center w-full sm:col-span-2 lg:col-span-1">
+              <Button
+                onClick={loadStudents}
+                disabled={loading}
+                size="xl"
+                className="w-full sm:w-auto"
+              >
                 {loading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
@@ -292,18 +306,18 @@ export default function StudentAttendancePage() {
             </Button>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border">
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[50px]">No</TableHead>
-                    <TableHead>Nama Siswa</TableHead>
-                    <TableHead className="w-[80px]">Gender</TableHead>
+                    <TableHead className="min-w-[100px]">Nama Siswa</TableHead>
+                    <TableHead className="text-center min-w-[200px]">
+                      Status Absensi
+                    </TableHead>
+                    <TableHead className="w-[100px]">Gender</TableHead>
                     <TableHead className="text-center w-[120px]">
                       Waktu
-                    </TableHead>
-                    <TableHead className="text-center">
-                      Status Absensi
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -313,6 +327,67 @@ export default function StudentAttendancePage() {
                       <TableCell>{index + 1}</TableCell>
                       <TableCell className="font-medium">
                         {student.name}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center min-h-[36px]">
+                          <RadioGroup
+                            value={attendance[student.id]}
+                            onValueChange={(v) =>
+                              handleStatusChange(student.id, v as AbsensiStatus)
+                            }
+                            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 items-center"
+                          >
+                            <label className="flex flex-col items-center gap-1 cursor-pointer whitespace-nowrap">
+                              <RadioGroupItem
+                                value="Hadir"
+                                id={`h-${student.id}`}
+                              />
+                              <span className="text-xs text-emerald-600 font-medium">
+                                Hadir
+                              </span>
+                            </label>
+                            <label className="flex flex-col items-center gap-1 cursor-pointer whitespace-nowrap">
+                              <RadioGroupItem
+                                value="Alfa"
+                                id={`a-${student.id}`}
+                              />
+                              <span className="text-xs text-destructive font-medium">
+                                Alfa
+                              </span>
+                            </label>
+                            <label className="flex flex-col items-center gap-1 cursor-pointer whitespace-nowrap">
+                              <RadioGroupItem
+                                value="Sakit"
+                                id={`s-${student.id}`}
+                              />
+                              <span className="text-xs text-amber-600 font-medium">
+                                Sakit
+                              </span>
+                            </label>
+                            {student.gender === "P" ? (
+                              <label className="flex flex-col items-center gap-1 cursor-pointer whitespace-nowrap">
+                                <RadioGroupItem
+                                  value="Haid"
+                                  id={`m-${student.id}`}
+                                />
+                                <span className="text-xs text-purple-600 font-medium">
+                                  Haid
+                                </span>
+                              </label>
+                            ) : (
+                              <div className="hidden" />
+                            )}
+                            <label className="flex flex-col items-center gap-1 cursor-pointer whitespace-nowrap">
+                              <RadioGroupItem
+                                value="Terlambat"
+                                id={`t-${student.id}`}
+                              />
+                              <span className="text-xs text-blue-600 font-medium">
+                                Terlambat
+                              </span>
+                            </label>
+                          </RadioGroup>
+                        </div>
                       </TableCell>
                       <TableCell>{student.gender}</TableCell>
                       <TableCell>
@@ -325,42 +400,6 @@ export default function StudentAttendancePage() {
                           className="h-8 w-full text-xs text-center bg-transparent border-0 focus:ring-0"
                           readOnly
                         />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-center min-h-[36px]">
-                          <RadioGroup
-                            value={attendance[student.id]}
-                            onValueChange={(v) =>
-                              handleStatusChange(student.id, v as AbsensiStatus)
-                            }
-                            className="grid grid-cols-5 gap-2 items-center"
-                          >
-                            <label className="flex flex-col items-center gap-1 cursor-pointer">
-                              <RadioGroupItem value="Hadir" id={`h-${student.id}`} />
-                              <span className="text-xs text-emerald-600 font-medium">Hadir</span>
-                            </label>
-                            <label className="flex flex-col items-center gap-1 cursor-pointer">
-                              <RadioGroupItem value="Alfa" id={`a-${student.id}`} />
-                              <span className="text-xs text-destructive font-medium">Alfa</span>
-                            </label>
-                            <label className="flex flex-col items-center gap-1 cursor-pointer">
-                              <RadioGroupItem value="Sakit" id={`s-${student.id}`} />
-                              <span className="text-xs text-amber-600 font-medium">Sakit</span>
-                            </label>
-                            {student.gender === "P" ? (
-                              <label className="flex flex-col items-center gap-1 cursor-pointer">
-                                <RadioGroupItem value="Haid" id={`m-${student.id}`} />
-                                <span className="text-xs text-purple-600 font-medium">Haid</span>
-                              </label>
-                            ) : (
-                              <div className="hidden" />
-                            )}
-                            <label className="flex flex-col items-center gap-1 cursor-pointer">
-                              <RadioGroupItem value="Terlambat" id={`t-${student.id}`} />
-                              <span className="text-xs text-blue-600 font-medium">Terlambat</span>
-                            </label>
-                          </RadioGroup>
-                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

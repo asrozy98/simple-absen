@@ -610,36 +610,76 @@ export async function bulkSaveStudentAttendance(
   date: string,
   prayerType: "Dhuha" | "Dhuhur",
   records: { studentId: string; status: StudentAttendance["status"]; time: string }[]
-): Promise<{ saved: number; skipped: string[] }> {
+): Promise<{ saved: number; updated: number; skipped: string[] }> {
   const sheets = await getSheets();
   const spreadsheetId = getSpreadsheetId();
   await ensureSheetExists(sheets, spreadsheetId, "StudentAttendance");
 
-  // Fetch existing attendance for this date + prayerType
-  const existing = await getStudentAttendance(date, prayerType);
-  const existingKeys = new Set(existing.map((a) => a.studentId));
+  // Fetch all rows with row numbers to find existing records
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: "StudentAttendance!A2:H",
+  });
 
-  // Filter out students who already have attendance for this date/prayerType
-  const newRecords = records.filter((r) => !existingKeys.has(r.studentId));
-  const skipped = records.filter((r) => existingKeys.has(r.studentId)).map((r) => r.studentId);
+  const rows = res.data.values || [];
+  // Map: studentId -> { rowIndex (0-based from A2), id }
+  const existingMap = new Map<string, { rowNum: number; id: string }>();
+  rows.forEach((row, idx) => {
+    const studentId = row[1];
+    const existingDate = row[3];
+    const existingPrayerType = row[4];
+    if (studentId && existingDate === date && existingPrayerType === prayerType) {
+      existingMap.set(studentId, { rowNum: idx + 2, id: row[0] }); // +2 because A2 is row 2
+    }
+  });
 
-  if (newRecords.length === 0) {
-    return { saved: 0, skipped };
+  const now = new Date().toISOString();
+  const updates: { range: string; values: string[][] }[] = [];
+  const appends: string[][] = [];
+  let updated = 0;
+  let saved = 0;
+  const skipped: string[] = [];
+
+  for (const r of records) {
+    const existing = existingMap.get(r.studentId);
+    const rowData = [existing?.id || crypto.randomUUID(), r.studentId, teacherId, date, prayerType, r.status, r.time, existing?.id ? rows[existing.rowNum - 2][7] || now : now];
+
+    if (existing) {
+      // Update existing row
+      updates.push({
+        range: `StudentAttendance!A${existing.rowNum}:H${existing.rowNum}`,
+        values: [rowData],
+      });
+      updated++;
+    } else {
+      // Append new row
+      appends.push(rowData);
+      saved++;
+    }
   }
 
-  const rows = newRecords.map((r) => {
-    const createdAt = new Date().toISOString();
-    return [crypto.randomUUID(), r.studentId, teacherId, date, prayerType, r.status, r.time, createdAt];
-  });
+  // Batch update existing records
+  if (updates.length > 0) {
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        valueInputOption: "RAW",
+        data: updates,
+      },
+    });
+  }
 
-  await sheets.spreadsheets.values.append({
-    spreadsheetId,
-    range: "StudentAttendance!A:H",
-    valueInputOption: "RAW",
-    requestBody: {
-      values: rows,
-    },
-  });
+  // Append new records
+  if (appends.length > 0) {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: "StudentAttendance!A:H",
+      valueInputOption: "RAW",
+      requestBody: {
+        values: appends,
+      },
+    });
+  }
 
-  return { saved: newRecords.length, skipped };
+  return { saved, updated, skipped };
 }

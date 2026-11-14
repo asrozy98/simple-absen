@@ -36,7 +36,8 @@ export async function POST(request: Request) {
 
     const result = await bulkSaveStudentAttendance(session.user.id, date, prayerType, records);
     
-    if (result.saved === 0 && result.skipped.length > 0) {
+    // All records already existed and none were updated (shouldn't happen now with upsert)
+    if (result.saved === 0 && result.updated === 0 && result.skipped.length > 0) {
       return NextResponse.json(
         { 
           error: "Semua siswa sudah memiliki absensi untuk sholat ini hari ini",
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ 
       success: true, 
       saved: result.saved,
+      updated: result.updated,
       skipped: result.skipped 
     });
   } catch (error) {

@@ -182,14 +182,14 @@ export default function StudentsPage() {
       </div>
 
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[100px]">No</TableHead>
-                <TableHead>Nama Lengkap</TableHead>
-                <TableHead>Kelas</TableHead>
-                <TableHead>Gender</TableHead>
+                <TableHead className="min-w-[180px]">Nama Lengkap</TableHead>
+                <TableHead className="min-w-[80px]">Kelas</TableHead>
+                <TableHead className="min-w-[80px]">Gender</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -212,11 +212,11 @@ export default function StudentsPage() {
                 students.map((student, index) => (
                   <TableRow key={student.id}>
                     <TableCell>{index + 1}</TableCell>
-                    <TableCell className="font-medium">
+                    <TableCell className="font-medium whitespace-nowrap">
                       {student.name}
                     </TableCell>
-                    <TableCell>{student.className}</TableCell>
-                    <TableCell>{student.gender}</TableCell>
+                    <TableCell className="whitespace-nowrap">{student.className}</TableCell>
+                    <TableCell className="whitespace-nowrap">{student.gender}</TableCell>
                   </TableRow>
                 ))
               )}
